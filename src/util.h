@@ -2,6 +2,7 @@
 #define POLYCUBES_UTIL_H_
 
 #include <concepts>
+#include <format>
 
 template <std::integral T, T MAX, template<T i> class F>
 struct metaswitch
@@ -12,7 +13,7 @@ struct metaswitch
         if (v == MAX) {
             return F<MAX>{}(std::forward<Args>(args)...);
         } else if constexpr (MAX == 0) {
-            throw std::runtime_error("invalid value in metaswitch");
+            throw std::runtime_error(std::format("invalid value: {}", v));
         } else {
             return metaswitch<T, MAX - 1, F>{}(v, std::forward<Args>(args)...);
         }

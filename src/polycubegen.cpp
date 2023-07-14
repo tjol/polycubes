@@ -44,6 +44,8 @@ struct escalate_impl
     {
         auto input_shapes = reader.slurp<SIZE>();
         auto larger_shapes = find_all_one_larger(input_shapes);
+        std::cout << std::format("Writing {} ({})-cubes to {}\n",
+            larger_shapes.size(), SIZE + 1, outfile.string());
         dump(larger_shapes, outfile);
     }
 };
@@ -59,7 +61,7 @@ int main(int argc, char const* const* argv)
 {
     using namespace std::string_view_literals;
 
-    size_t maxcount = 2;
+    size_t maxcount = 6;
     std::filesystem::path out_dir{"."};
 
     for (int i{1}; i < argc; ++i) {
@@ -77,6 +79,9 @@ int main(int argc, char const* const* argv)
             } else {
                 maxcount = static_cast<size_t>(val);
             }
+        } else if (arg == "-h"sv || arg == "--help"sv) {
+            std::cout << std::format("Usage: {} [-n MAXCOUNT] [OUTDIR]\n", argv[0]);
+            return 0;
         } else {
             out_dir = arg;
         }
