@@ -10,8 +10,8 @@
 #include <execution>
 
 
-size_t constexpr SERIAL_CHUNK_SIZE = 500;
-inline size_t parallel_chunk_count() { return std::thread::hardware_concurrency() * 2; }
+size_t constexpr SERIAL_CHUNK_SIZE = 1000;
+inline size_t parallel_chunk_count() { return std::thread::hardware_concurrency() * 3; }
 
 
 template <size_t SIZE>

@@ -1,6 +1,7 @@
 #include "polycube.h"
 #include "polycubeio.h"
 #include "polycubesearch.h"
+#include "util.h"
 
 #include <iostream>
 #include <vector>
@@ -37,72 +38,21 @@ void dump(Range shapes, std::filesystem::path const& dest)
 }
 
 template <size_t SIZE>
-void escalate_impl(PolyCubeListFileReader& reader, std::filesystem::path& outfile)
+struct escalate_impl
 {
-    auto input_shapes = reader.slurp<SIZE>();
-    auto larger_shapes = find_all_one_larger(input_shapes);
-    dump(larger_shapes, outfile);
-}
+    void operator()(PolyCubeListFileReader& reader, std::filesystem::path& outfile)
+    {
+        auto input_shapes = reader.slurp<SIZE>();
+        auto larger_shapes = find_all_one_larger(input_shapes);
+        dump(larger_shapes, outfile);
+    }
+};
 
 void escalate(std::filesystem::path const& infile, std::filesystem::path& outfile)
 {
     PolyCubeListFileReader reader{infile};
 
-    switch (reader.cube_count()) {
-    case 1:
-        escalate_impl<1>(reader, outfile);
-        break;
-    case 2:
-        escalate_impl<2>(reader, outfile);
-        break;
-    case 3:
-        escalate_impl<3>(reader, outfile);
-        break;
-    case 4:
-        escalate_impl<4>(reader, outfile);
-        break;
-    case 5:
-        escalate_impl<5>(reader, outfile);
-        break;
-    case 6:
-        escalate_impl<6>(reader, outfile);
-        break;
-    case 7:
-        escalate_impl<7>(reader, outfile);
-        break;
-    case 8:
-        escalate_impl<8>(reader, outfile);
-        break;
-    case 9:
-        escalate_impl<9>(reader, outfile);
-        break;
-    case 10:
-        escalate_impl<10>(reader, outfile);
-        break;
-    case 11:
-        escalate_impl<11>(reader, outfile);
-        break;
-    case 12:
-        escalate_impl<12>(reader, outfile);
-        break;
-    case 13:
-        escalate_impl<13>(reader, outfile);
-        break;
-    case 14:
-        escalate_impl<14>(reader, outfile);
-        break;
-    case 15:
-        escalate_impl<15>(reader, outfile);
-        break;
-    case 16:
-        escalate_impl<16>(reader, outfile);
-        break;
-    case 17:
-        escalate_impl<17>(reader, outfile);
-        break;
-    default:
-        throw std::runtime_error("not implemented");
-    }
+    metaswitch<size_t, 17, escalate_impl>{}(reader.cube_count(), reader, outfile);
 }
 
 int main(int argc, char const* const* argv)
