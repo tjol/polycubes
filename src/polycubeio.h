@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <bit>
 #include <iostream>
+#include <iterator>
 
 class PolyCubeListFileReader
 {
@@ -29,42 +30,89 @@ public:
         if (!m_stream->good()) throw std::runtime_error("Error reading file (sz)");
 
         m_cube_count = cube_count;
+
+        m_begin_pos = m_stream->tellg();
     }
 
     int cube_count() const { return m_cube_count; }
 
-    template <size_t SIZE, typename Func>
-    requires std::invocable<Func, PolyCube<SIZE> const&>
-    void for_each(Func func)
+    template <size_t SIZE>
+    class Iter
     {
-        static_assert(std::endian::native == std::endian::little);
-        while (!m_stream->eof()) {
-            PolyCube<SIZE> s;
-            m_stream->read(reinterpret_cast<char*>(&s), sizeof(PolyCube<SIZE>));
-            auto count = m_stream->gcount();
-            if (count == 0 && m_stream->eof()) {
-                // clean end
-                return;
-            } else if (count != sizeof(PolyCube<SIZE>) || m_stream->fail()) {
-                // unclean end
-                throw std::runtime_error("Error reading file (v)");
-            }
-            func(std::move(s));
+    public:
+        using value_type = PolyCube<SIZE>;
+        using reference = value_type&;
+        using pointer = value_type*;
+        using difference_type = std::ptrdiff_t;
+        using const_reference = value_type const&;
+        using iterator_category = std::input_iterator_tag;
+
+
+        Iter(std::istream& stream, std::istream::pos_type pos)
+            : m_stream{stream}, m_pos{pos}
+        {
+            update();
         }
+
+        Iter(const Iter&) = default;
+
+        reference operator*() { return m_val; }
+        const_reference operator*() const { return m_val; }
+
+        Iter& operator++()
+        {
+            m_pos = m_next_pos;
+            update();
+            return *this;
+        }
+
+        Iter operator++(int)
+        {
+            auto copy = *this;
+            ++(*this);
+            return copy;
+        }
+
+        bool operator==(Iter const& other)
+        {
+            return &m_stream == &other.m_stream && m_pos == other.m_pos;
+        }
+
+    private:
+        void update()
+        {
+            m_stream.clear();
+            m_stream.seekg(m_pos);
+            m_stream.read(reinterpret_cast<char*>(&m_val), sizeof(PolyCube<SIZE>));
+            if (m_stream.good())
+                m_next_pos = m_stream.tellg();
+        }
+
+        std::istream& m_stream;
+        std::istream::pos_type m_pos{};
+        std::istream::pos_type m_next_pos{};
+        PolyCube<SIZE> m_val;
+    };
+
+    template <size_t SIZE> Iter<SIZE> begin() { return Iter<SIZE>{*m_stream, m_begin_pos}; }
+
+    template <size_t SIZE>
+    Iter<SIZE> end()
+    {
+        m_stream->seekg(0, std::ios::end);
+        auto endpos = m_stream->tellg();
+        return Iter<SIZE>{*m_stream, endpos};
     }
 
     template <size_t SIZE>
     std::vector<PolyCube<SIZE>> slurp()
     {
-        std::vector<PolyCube<SIZE>> result;
-        for_each<SIZE>([&result] (auto const& PolyCube) {
-            result.push_back(PolyCube);
-        });
-        return result;
+        return std::vector<PolyCube<SIZE>>(begin<SIZE>(), end<SIZE>());
     }
 
 private:
     std::unique_ptr<std::istream> m_stream{};
+    std::istream::pos_type m_begin_pos{};
     int m_cube_count{};
 };
 

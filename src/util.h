@@ -21,5 +21,4 @@ struct metaswitch
 };
 
 
-
 #endif // POLYCUBES_UTIL_H_
