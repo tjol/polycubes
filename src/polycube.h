@@ -3,10 +3,9 @@
 
 #include "coord.h"
 
-#include <array>
 #include <algorithm>
-#include <iostream>
-#include <span>
+#include <array>
+#include <ostream>
 
 
 template <size_t SIZE>

@@ -1,10 +1,11 @@
 #include "polycubeio.h"
 #include "util.h"
 
-#include <cmath>
-#include <fstream>
 #include <array>
+#include <cmath>
+#include <iostream>
 #include <format>
+#include <fstream>
 
 template <size_t SIZE>
 struct convert_impl

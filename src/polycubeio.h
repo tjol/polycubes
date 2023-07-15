@@ -4,14 +4,8 @@
 #include "polycube.h"
 
 #include <filesystem>
-#include <memory>
 #include <fstream>
-#include <concepts>
-#include <array>
-#include <cstdint>
-#include <bit>
-#include <iostream>
-#include <iterator>
+#include <memory>
 
 class PolyCubeListFileReader
 {

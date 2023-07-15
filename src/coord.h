@@ -2,11 +2,12 @@
 #define POLYCUBES_COORD_H_
 
 #include <array>
-#include <stdexcept>
-#include <iostream>
-#include <limits>
+#include <cstdint>
 #include <functional>
-#include <stdint.h>
+#include <limits>
+#include <ostream>
+#include <stdexcept>
+
 
 int constexpr N_ROTATIONS = 24;
 

@@ -4,13 +4,12 @@
 #include "polycube.h"
 #include "polycubeio.h"
 
-#include <set>
-#include <span>
-#include <thread>
 #include <algorithm>
 #include <execution>
-#include <iterator>
 #include <format>
+#include <iostream>
+#include <set>
+#include <thread>
 
 
 long constexpr serial_chunk_size(size_t SIZE) { return 3200 / SIZE; }
@@ -50,8 +49,8 @@ void find_larger(PolyCube<SIZE-1> const& orig_shape, std::set<PolyCube<SIZE>>& o
     }
 }
 
-template <typename T>
-void merge(std::set<T>& output, std::span<std::set<T>> additions)
+template <typename T, typename Range>
+void merge_all(std::set<T>& output, Range&& additions)
 {
     for (auto& addition : additions) {
         output.merge(addition);
@@ -102,7 +101,7 @@ void find_all_impl(Iter begin, Iter end, std::set<PolyCube<cube_count_of_iter<It
                 find_all_impl(chunks[i].begin(), chunks[i].end(), sub_results[i]);
             });
 
-        merge(result, std::span{sub_results});
+        merge_all(result, sub_results);
     } else {
         // Do super-chunks in series
         for (long i{}; i < count; i += PARALLEL_COUNT) {
