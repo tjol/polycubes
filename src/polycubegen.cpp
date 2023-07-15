@@ -12,31 +12,6 @@
 #include <errno.h>
 #include <format>
 
-template<size_t SIZE, typename Range>
-concept PolyCubeRange = std::ranges::range<Range> && requires (Range r) {
-    { *std::ranges::begin(r) } -> std::convertible_to<PolyCube<SIZE>>;
-};
-
-template<typename Range>
-concept AnyPolyCubeRange = std::ranges::range<Range> && requires (Range r) {
-    { *std::ranges::begin(r) } -> PolyCuboidDeref;
-};
-
-template<AnyPolyCubeRange Range>
-using polycube_type_of = std::remove_cvref_t<decltype(*std::ranges::begin(std::declval<Range const&>()))>;
-
-template<AnyPolyCubeRange Range>
-size_t constexpr cube_count_of_range = polycube_type_of<Range>::cube_count;
-
-
-template <AnyPolyCubeRange Range>
-void dump(Range&& shapes, std::filesystem::path const& dest)
-{
-    PolyCubeListFileWriter<cube_count_of_range<Range>> writer{dest};
-    for (const auto& s : shapes)
-        writer.write(s);
-}
-
 template <size_t SIZE>
 struct escalate_impl
 {
@@ -84,8 +59,10 @@ int main(int argc, char const* const* argv)
         }
     }
 
-    auto seed = std::array{PolyCube<1>{Coord{0, 0, 0}}};
-    dump(seed, out_dir/"polycubes_1.bin");
+    {
+        PolyCubeListFileWriter<1> writer{out_dir/"polycubes_1.bin"};
+        writer.write({Coord{0, 0, 0}});
+    }
 
     for (size_t count{2}; count <= maxcount; ++count) {
         auto infile = out_dir / std::format("polycubes_{}.bin", count-1);

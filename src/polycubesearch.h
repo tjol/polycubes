@@ -158,8 +158,8 @@ size_t gen_polycube_list(Iter seed_begin, Iter seed_end, std::filesystem::path o
         if (i == 0) {
             PolyCubeListFileWriter<SIZE> writer{cachefile1};
             for (auto const& pc : result_vec) writer.write(pc);
-            std::cout << std::format("- SYNC ({}) [{} of {}] saved {}\n",
-                SIZE, i, seed_count, result_vec.size());
+            std::cout << std::format("- SYNC ({}) [{}-{} of {}] saved {}\n",
+                SIZE, i, i + chunk_len, seed_count, result_vec.size());
         } else {
             {
                 PolyCubeListFileReader cache{cachefile1};
@@ -174,8 +174,9 @@ size_t gen_polycube_list(Iter seed_begin, Iter seed_end, std::filesystem::path o
                         ++count;
                         cache_out.write(pc);
                     });
-                std::cout << std::format("- SYNC ({}) [{} of {}] saved {} (was {}, dup {})\n",
-                    SIZE, i, seed_count, count, old_count, (old_count + result_vec.size()) - count);
+                std::cout << std::format("- SYNC ({}) [{}-{} of {}] saved {} (was {}, dup {})\n",
+                    SIZE, i, i + chunk_len, seed_count, count, old_count,
+                    (old_count + result_vec.size()) - count);
             }
             std::filesystem::remove(cachefile1);
             std::filesystem::rename(cachefile2, cachefile1);
