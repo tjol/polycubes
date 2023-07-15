@@ -10,8 +10,8 @@
 #include <execution>
 
 
-size_t constexpr SERIAL_CHUNK_SIZE = 1000;
-inline size_t parallel_chunk_count() { return std::thread::hardware_concurrency() * 3; }
+size_t constexpr serial_chunk_size(size_t SIZE) { return 3200 / SIZE; }
+inline size_t parallel_chunk_count() { return std::thread::hardware_concurrency() * 2; }
 
 
 template <size_t SIZE>
@@ -56,6 +56,7 @@ void merge(std::unordered_set<T>& output, std::span<std::unordered_set<T>> addit
 template <size_t SIZE>
 void find_all_impl(std::span<PolyCube<SIZE - 1> const> one_smaller, std::unordered_set<PolyCube<SIZE>>& result)
 {
+    static auto constexpr SERIAL_CHUNK_SIZE = serial_chunk_size(SIZE);
     static auto PARALLEL_CHUNKS = parallel_chunk_count();
     static auto PARALLEL_COUNT = PARALLEL_CHUNKS * SERIAL_CHUNK_SIZE;
 
