@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <execution>
 #include <iterator>
+#include <format>
 
 
 long constexpr serial_chunk_size(size_t SIZE) { return 3200 / SIZE; }
@@ -123,10 +124,67 @@ std::unordered_set<PolyCube<cube_count_of_iter<Iter> + 1>> find_all_one_larger(I
     return result;
 }
 
-template <size_t SMALL_SIZE>
-std::unordered_set<PolyCube<SMALL_SIZE + 1>> find_all_one_larger(PolyCubeListFileReader& one_smaller)
+template <RandomAccessPolyCubeIterator Iter>
+size_t gen_polycube_list(Iter seed_begin, Iter seed_end, std::filesystem::path outfile)
 {
-    return find_all_one_larger(one_smaller.begin<SMALL_SIZE>(), one_smaller.end<SMALL_SIZE>());
+    size_t constexpr SIZE = cube_count_of_iter<Iter> + 1;
+
+    auto cachefile1 = outfile.parent_path() / std::format(".{}.tmp.1", outfile.filename().string());
+    auto cachefile2 = outfile.parent_path() / std::format(".{}.tmp.2", outfile.filename().string());
+
+    auto seed_count = seed_end - seed_begin;
+    auto chunk_size = input_size_without_cache(SIZE);
+
+    // Abbreviated version for small numbers
+    if (seed_count <= chunk_size) {
+        PolyCubeListFileWriter<SIZE> writer{outfile};
+        auto result = find_all_one_larger(seed_begin, seed_end);
+        for (auto const& pc : result) writer.write(pc);
+        return result.size();
+    }
+
+    size_t count = 0;
+
+    for (long i{}; i < seed_count; i += chunk_size) {
+        long chunk_len = std::min(seed_count - i, chunk_size);
+
+        auto chunk_begin = seed_begin + i;
+        auto chunk_end = chunk_begin + chunk_len;
+        auto chunk_result = find_all_one_larger(chunk_begin, chunk_end);
+
+        auto result_vec = std::vector(chunk_result.begin(), chunk_result.end());
+        std::sort(std::execution::par, result_vec.begin(), result_vec.end());
+
+        if (i == 0) {
+            PolyCubeListFileWriter<SIZE> writer{cachefile1};
+            for (auto const& pc : result_vec) writer.write(pc);
+            std::cout << std::format("- SYNC ({}) [{} of {}] saved {}\n",
+                SIZE, i, seed_count, result_vec.size());
+        } else {
+            {
+                PolyCubeListFileReader cache{cachefile1};
+                PolyCubeListFileWriter<SIZE> cache_out{cachefile2};
+
+                auto cache_begin = cache.begin<SIZE>();
+                auto cache_end = cache.end<SIZE>();
+                auto old_count = cache_end - cache_begin;
+                count = 0;
+                merge_uniq(cache_begin, cache_end, result_vec.begin(), result_vec.end(),
+                    [&](auto const& pc) {
+                        ++count;
+                        cache_out.write(pc);
+                    });
+                std::cout << std::format("- SYNC ({}) [{} of {}] saved {} (was {}, dup {})\n",
+                    SIZE, i, seed_count, count, old_count, (old_count + result_vec.size()) - count);
+            }
+            std::filesystem::remove(cachefile1);
+            std::filesystem::rename(cachefile2, cachefile1);
+        }
+    }
+
+    std::filesystem::rename(cachefile1, outfile);
+
+    return count;
 }
 
 

@@ -20,5 +20,34 @@ struct metaswitch
     }
 };
 
+template <typename Iter1, typename Iter2, typename OutFunc>
+void merge_uniq(Iter1 begin1, Iter1 end1, Iter2 begin2, Iter2 end2, OutFunc f)
+{
+    auto iter1 = begin1;
+    auto iter2 = begin2;
+
+    while (iter1 != end1 && iter2 != end2) {
+        if (*iter1 == *iter2) {
+            ++iter2;
+        } else if (*iter1 < *iter2) {
+            f(*iter1);
+            ++iter1;
+        } else {
+            f(*iter2);
+            ++iter2;
+        }
+    }
+
+    while (iter1 != end1) {
+        f(*iter1);
+        ++iter1;
+    }
+
+    while (iter2 != end2) {
+        f(*iter2);
+        ++iter2;
+    }
+}
+
 
 #endif // POLYCUBES_UTIL_H_

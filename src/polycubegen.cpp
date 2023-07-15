@@ -42,10 +42,8 @@ struct escalate_impl
 {
     void operator()(PolyCubeListFileReader& reader, std::filesystem::path& outfile)
     {
-        auto larger_shapes = find_all_one_larger<SIZE>(reader);
-        std::cout << std::format("Writing {} ({})-cubes to {}\n",
-            larger_shapes.size(), SIZE + 1, outfile.string());
-        dump(larger_shapes, outfile);
+        auto count = gen_polycube_list(reader.begin<SIZE>(), reader.end<SIZE>(), outfile);
+        std::cout << std::format("Wrote {} ({})-cubes to {}\n", count, SIZE + 1, outfile.string());
     }
 };
 
