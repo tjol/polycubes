@@ -26,13 +26,13 @@ template<AnyPolyCubeRange Range>
 using polycube_type_of = std::remove_cvref_t<decltype(*std::ranges::begin(std::declval<Range const&>()))>;
 
 template<AnyPolyCubeRange Range>
-size_t constexpr cube_count_of = polycube_type_of<Range>::cube_count;
+size_t constexpr cube_count_of_range = polycube_type_of<Range>::cube_count;
 
 
 template <AnyPolyCubeRange Range>
 void dump(Range&& shapes, std::filesystem::path const& dest)
 {
-    PolyCubeListFileWriter<cube_count_of<Range>> writer{dest};
+    PolyCubeListFileWriter<cube_count_of_range<Range>> writer{dest};
     for (const auto& s : shapes)
         writer.write(s);
 }
@@ -42,8 +42,7 @@ struct escalate_impl
 {
     void operator()(PolyCubeListFileReader& reader, std::filesystem::path& outfile)
     {
-        auto input_shapes = reader.slurp<SIZE>();
-        auto larger_shapes = find_all_one_larger(input_shapes);
+        auto larger_shapes = find_all_one_larger<SIZE>(reader);
         std::cout << std::format("Writing {} ({})-cubes to {}\n",
             larger_shapes.size(), SIZE + 1, outfile.string());
         dump(larger_shapes, outfile);

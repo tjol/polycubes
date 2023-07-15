@@ -41,23 +41,29 @@ public:
     {
     public:
         using value_type = PolyCube<SIZE>;
-        using reference = value_type&;
-        using pointer = value_type*;
+        using reference = value_type const&;
+        using pointer = value_type const*;
         using difference_type = std::ptrdiff_t;
-        using const_reference = value_type const&;
-        using iterator_category = std::input_iterator_tag;
+        using iterator_category = std::random_access_iterator_tag;
 
 
-        Iter(std::istream& stream, std::istream::pos_type pos)
+        Iter() = default;
+
+        Iter(std::istream* stream, std::istream::pos_type pos)
             : m_stream{stream}, m_pos{pos}
         {
             update();
         }
 
         Iter(const Iter&) = default;
+        Iter(Iter&&) = default;
+        Iter& operator=(const Iter&) = default;
+        Iter& operator=(Iter&&) = default;
 
-        reference operator*() { return m_val; }
-        const_reference operator*() const { return m_val; }
+        reference operator*() const { return m_val; }
+        pointer operator->() const { return &m_val; }
+
+        reference operator[](difference_type n) const { return *((*this) + n);}
 
         Iter& operator++()
         {
@@ -73,35 +79,92 @@ public:
             return copy;
         }
 
-        bool operator==(Iter const& other)
+        Iter& operator--()
         {
-            return &m_stream == &other.m_stream && m_pos == other.m_pos;
+            m_pos -= sizeof(value_type);
+            update();
+            return *this;
         }
+
+        Iter operator--(int)
+        {
+            auto copy = *this;
+            --(*this);
+            return copy;
+        }
+
+        difference_type operator-(Iter const& other) const
+        {
+            return (m_pos - other.m_pos) / sizeof(value_type);
+        }
+
+        Iter& operator+=(difference_type n)
+        {
+            m_pos += n * sizeof(value_type);
+            update();
+            return *this;
+        }
+
+        Iter& operator-=(difference_type n)
+        {
+            m_pos -= n * sizeof(value_type);
+            update();
+            return *this;
+        }
+
+        Iter operator+(difference_type n) const
+        {
+            auto copy = *this;
+            copy += n;
+            return copy;
+        }
+
+        Iter operator-(difference_type n) const
+        {
+            auto copy = *this;
+            copy -= n;
+            return copy;
+        }
+
+        bool operator==(Iter const& other) const
+        {
+            return m_stream == other.m_stream && m_pos == other.m_pos;
+        }
+
+        bool operator!=(Iter const& other) const { return !(*this == other); }
+
+        bool operator<(Iter const& other) const { return m_pos < other.m_pos; }
+
+        bool operator<=(Iter const& other) const { return m_pos <= other.m_pos; }
+
+        bool operator>=(Iter const& other) const { return other < *this; }
+
+        bool operator>(Iter const& other) const { return other <= *this; }
 
     private:
         void update()
         {
-            m_stream.clear();
-            m_stream.seekg(m_pos);
-            m_stream.read(reinterpret_cast<char*>(&m_val), sizeof(PolyCube<SIZE>));
-            if (m_stream.good())
-                m_next_pos = m_stream.tellg();
+            m_stream->clear();
+            m_stream->seekg(m_pos);
+            m_stream->read(reinterpret_cast<char*>(&m_val), sizeof(PolyCube<SIZE>));
+            if (m_stream->good())
+                m_next_pos = m_stream->tellg();
         }
 
-        std::istream& m_stream;
+        std::istream* m_stream{nullptr};
         std::istream::pos_type m_pos{};
         std::istream::pos_type m_next_pos{};
         PolyCube<SIZE> m_val;
     };
 
-    template <size_t SIZE> Iter<SIZE> begin() { return Iter<SIZE>{*m_stream, m_begin_pos}; }
+    template <size_t SIZE> Iter<SIZE> begin() { return Iter<SIZE>{m_stream.get(), m_begin_pos}; }
 
     template <size_t SIZE>
     Iter<SIZE> end()
     {
         m_stream->seekg(0, std::ios::end);
         auto endpos = m_stream->tellg();
-        return Iter<SIZE>{*m_stream, endpos};
+        return Iter<SIZE>{m_stream.get(), endpos};
     }
 
     template <size_t SIZE>
@@ -115,6 +178,12 @@ private:
     std::istream::pos_type m_begin_pos{};
     int m_cube_count{};
 };
+
+template<size_t SIZE>
+PolyCubeListFileReader::Iter<SIZE> operator+(std::iter_difference_t<PolyCubeListFileReader::Iter<SIZE>> n, PolyCubeListFileReader::Iter<SIZE> const& iter)
+{
+    return iter + n;
+}
 
 template <int SIZE>
 class PolyCubeListFileWriter
