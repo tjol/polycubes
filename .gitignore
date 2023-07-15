@@ -1,3 +1,7 @@
+/.buildconfig
+/.vs/
+/.vscode/
+/out/
 /build*/
 *.bin
 *.o

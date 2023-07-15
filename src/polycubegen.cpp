@@ -30,7 +30,7 @@ size_t constexpr cube_count_of = polycube_type_of<Range>::cube_count;
 
 
 template <AnyPolyCubeRange Range>
-void dump(Range shapes, std::filesystem::path const& dest)
+void dump(Range&& shapes, std::filesystem::path const& dest)
 {
     PolyCubeListFileWriter<cube_count_of<Range>> writer{dest};
     for (const auto& s : shapes)
@@ -62,7 +62,7 @@ int main(int argc, char const* const* argv)
     using namespace std::string_view_literals;
 
     size_t maxcount = 6;
-    std::filesystem::path out_dir{"."};
+    std::filesystem::path out_dir{"/tmp"};
 
     for (int i{1}; i < argc; ++i) {
         std::string_view arg{argv[i]};

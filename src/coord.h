@@ -110,19 +110,19 @@ Coord min_coords(CoordRange coords)
     return {min_x, min_y, min_z};
 }
 
-int coord_cmp(Coord const& a, Coord const& b)
+inline bool operator==(Coord const& a, Coord const& b)
+{
+    return a.x() == b.x() && a.y() == b.y() && a.z() == b.z();
+}
+
+inline bool operator<(Coord const& a, Coord const& b)
 {
     for (int i = 0; i < 3; ++i)
     {
-        if (a.xyz[i] < b.xyz[i]) return -1;
-        else if (a.xyz[i] > b.xyz[i]) return 1;
+        if (a.xyz[i] < b.xyz[i]) return true;
+        else if (a.xyz[i] > b.xyz[i]) return false;
     }
-    return 0;
-}
-
-bool operator==(Coord const& a, Coord const& b)
-{
-    return a.x() == b.x() && a.y() == b.y() && a.z() == b.z();
+    return false;
 }
 
 template<typename T>

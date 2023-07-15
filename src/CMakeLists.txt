@@ -55,3 +55,4 @@ target_link_libraries(polycubegen ${STD_EXECUTION_LIBRARIES})
 
 add_executable(polycubes2obj polycubes2obj.cpp)
 
+install(TARGETS polycubegen polycubes2obj)

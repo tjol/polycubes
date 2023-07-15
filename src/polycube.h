@@ -8,24 +8,6 @@
 #include <iostream>
 #include <span>
 
-template <size_t SIZE>
-int coord_cmp(std::span<Coord const, SIZE> aa, std::span<Coord const, SIZE> bb)
-{
-    for (size_t i{}; i < SIZE; ++i) {
-        switch (coord_cmp(aa[i], bb[i])) {
-        case -1: return -1;
-        case 1: return 1;
-        default: break;
-        }
-    }
-    return 0;
-}
-
-template <size_t SIZE>
-int coord_cmp(std::array<Coord, SIZE> const& aa, std::array<Coord, SIZE> const& bb)
-{
-    return coord_cmp(std::span{aa}, std::span{bb});
-}
 
 template <size_t SIZE>
 struct PolyCube
@@ -53,8 +35,7 @@ struct PolyCube
         }
         // sort the coordinates (the order doesn't matter - sorted is defined as
         // the normal form)
-        std::sort(result.cubes.begin(), result.cubes.end(),
-            [](auto const& a, auto const& b) { return coord_cmp(a, b) == -1; });
+        std::sort(result.cubes.begin(), result.cubes.end());
         return result;
     }
 
@@ -72,8 +53,7 @@ struct PolyCube
         // the coordinate representations of the shape have an absolute order
         // the "minimum" is defined as the normal form
         auto tutti = all_rots();
-        return *std::min_element(tutti.cbegin(), tutti.cend(),
-            [](auto const& a, auto const& b) { return coord_cmp(a.cubes, b.cubes) == -1; });
+        return *std::min_element(tutti.cbegin(), tutti.cend());
     }
 
 };
@@ -95,6 +75,16 @@ bool operator==(PolyCube<SIZE> const& a, PolyCube<SIZE> const& b)
     for (size_t i{}; i < SIZE; ++i)
         if (a.cubes[i] != b.cubes[i]) return false;
     return true;
+}
+
+template <size_t SIZE>
+bool operator<(PolyCube<SIZE> const& a, PolyCube<SIZE> const& b)
+{
+    for (size_t i{}; i < SIZE; ++i) {
+        if (a.cubes[i] < b.cubes[i]) return true;
+        else if (a.cubes[i] != b.cubes[i]) return false;
+    }
+    return false;
 }
 
 template<typename T, typename=void> bool constexpr is_polycube = false;
