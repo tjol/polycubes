@@ -4,7 +4,7 @@
 #include "polycube.h"
 #include "polycubeio.h"
 
-#include <unordered_set>
+#include <set>
 #include <span>
 #include <thread>
 #include <algorithm>
@@ -20,7 +20,7 @@ long constexpr input_size_without_cache([[maybe_unused]] size_t SIZE) { return 2
 
 
 template <size_t SIZE>
-void try_adding_block(PolyCube<SIZE-1> const& orig_shape, Coord const& coord, std::unordered_set<PolyCube<SIZE>>& output)
+void try_adding_block(PolyCube<SIZE-1> const& orig_shape, Coord const& coord, std::set<PolyCube<SIZE>>& output)
 {
     for (auto const& block : orig_shape.cubes)
     {
@@ -37,7 +37,7 @@ void try_adding_block(PolyCube<SIZE-1> const& orig_shape, Coord const& coord, st
 
 
 template <size_t SIZE>
-void find_larger(PolyCube<SIZE-1> const& orig_shape, std::unordered_set<PolyCube<SIZE>>& output)
+void find_larger(PolyCube<SIZE-1> const& orig_shape, std::set<PolyCube<SIZE>>& output)
 {
     for (auto const& block : orig_shape.cubes)
     {
@@ -51,7 +51,7 @@ void find_larger(PolyCube<SIZE-1> const& orig_shape, std::unordered_set<PolyCube
 }
 
 template <typename T>
-void merge(std::unordered_set<T>& output, std::span<std::unordered_set<T>> additions)
+void merge(std::set<T>& output, std::span<std::set<T>> additions)
 {
     for (auto& addition : additions) {
         output.merge(addition);
@@ -68,7 +68,7 @@ template<RandomAccessPolyCubeIterator Iter>
 size_t constexpr cube_count_of_iter = std::iterator_traits<Iter>::value_type::cube_count;
 
 template <RandomAccessPolyCubeIterator Iter>
-void find_all_impl(Iter begin, Iter end, std::unordered_set<PolyCube<cube_count_of_iter<Iter>+1>>& result)
+void find_all_impl(Iter begin, Iter end, std::set<PolyCube<cube_count_of_iter<Iter>+1>>& result)
 {
     size_t constexpr SIZE = cube_count_of_iter<Iter> + 1;
     static auto constexpr SERIAL_CHUNK_SIZE = serial_chunk_size(SIZE);
@@ -93,7 +93,7 @@ void find_all_impl(Iter begin, Iter end, std::unordered_set<PolyCube<cube_count_
             chunks.push_back(std::vector<PolyCube<SIZE - 1>>(chunk_begin, chunk_end));
         }
 
-        std::vector<std::unordered_set<PolyCube<SIZE>>> sub_results(chunks.size());
+        std::vector<std::set<PolyCube<SIZE>>> sub_results(chunks.size());
 
         std::vector<long> indices(chunks.size());
         std::iota(indices.begin(), indices.end(), 0);
@@ -116,10 +116,10 @@ void find_all_impl(Iter begin, Iter end, std::unordered_set<PolyCube<cube_count_
 }
 
 template <RandomAccessPolyCubeIterator Iter>
-std::unordered_set<PolyCube<cube_count_of_iter<Iter> + 1>> find_all_one_larger(Iter begin, Iter end)
+std::set<PolyCube<cube_count_of_iter<Iter> + 1>> find_all_one_larger(Iter begin, Iter end)
 {
     size_t constexpr SIZE = cube_count_of_iter<Iter> + 1;
-    std::unordered_set<PolyCube<SIZE>> result;
+    std::set<PolyCube<SIZE>> result;
     find_all_impl(begin, end, result);
     return result;
 }
@@ -153,7 +153,6 @@ size_t gen_polycube_list(Iter seed_begin, Iter seed_end, std::filesystem::path o
         auto chunk_result = find_all_one_larger(chunk_begin, chunk_end);
 
         auto result_vec = std::vector(chunk_result.begin(), chunk_result.end());
-        std::sort(std::execution::par, result_vec.begin(), result_vec.end());
 
         if (i == 0) {
             PolyCubeListFileWriter<SIZE> writer{cachefile1};
