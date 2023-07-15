@@ -74,7 +74,7 @@ void find_all_impl(Iter begin, Iter end, std::set<PolyCube<cube_count_of_iter<It
     static auto PARALLEL_CHUNKS = parallel_chunk_count();
     static auto PARALLEL_COUNT = PARALLEL_CHUNKS * SERIAL_CHUNK_SIZE;
 
-    auto count = end - begin;
+    long count = end - begin;
 
     if (count <= SERIAL_CHUNK_SIZE) {
         // Do these all at once, one after the other
@@ -131,7 +131,7 @@ size_t gen_polycube_list(Iter seed_begin, Iter seed_end, std::filesystem::path o
     auto cachefile1 = outfile.parent_path() / std::format(".{}.tmp.1", outfile.filename().string());
     auto cachefile2 = outfile.parent_path() / std::format(".{}.tmp.2", outfile.filename().string());
 
-    auto seed_count = seed_end - seed_begin;
+    long seed_count = seed_end - seed_begin;
     auto chunk_size = input_size_without_cache(SIZE);
 
     // Abbreviated version for small numbers
