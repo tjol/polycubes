@@ -56,7 +56,7 @@ Tested on Linux with GCC 13, Windows with Visual C++ 2022, and MacOS with GCC 13
 Compatibility notes:
  * On Linux, you need to have TBB installed (`apt install libtbb-dev` on Ubuntu)
  * On MacOS, you need to have TBB installed (`brew install tbb`) and you *must*
-   use GCC (`brew install gcc`), Apple will not work! Configure like this:
+   use GCC (`brew install gcc`), Clang will not work! Configure like this:
 
        CXX=g++-13 cmake .. -DCMAKE_BUILD_TYPE=Release
 
