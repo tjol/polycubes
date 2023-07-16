@@ -19,10 +19,8 @@ struct escalate_impl
     }
 };
 
-void escalate(std::filesystem::path const& infile, std::filesystem::path& outfile)
+void escalate(PolyCubeListFileReader& reader, std::filesystem::path& outfile)
 {
-    PolyCubeListFileReader reader{infile};
-
     metaswitch<size_t, 17, escalate_impl>{}(reader.cube_count(), reader, outfile);
 }
 
@@ -31,7 +29,8 @@ int main(int argc, char const* const* argv)
     using namespace std::string_view_literals;
 
     size_t maxcount = 6;
-    std::filesystem::path out_dir{"/tmp"};
+    std::filesystem::path out_dir{"."};
+    std::filesystem::path seed_file;
 
     for (int i{1}; i < argc; ++i) {
         std::string_view arg{argv[i]};
@@ -48,24 +47,31 @@ int main(int argc, char const* const* argv)
             } else {
                 maxcount = static_cast<size_t>(val);
             }
+        } else if ((arg == "-s"sv || arg == "--seed"sv) && i + 1 < argc) {
+            seed_file = argv[++i];
         } else if (arg == "-h"sv || arg == "--help"sv) {
-            std::cout << std::format("Usage: {} [-n MAXCOUNT] [OUTDIR]\n", argv[0]);
+            std::cout << std::format("Usage: {} [-n MAXCOUNT] [-s SEED_FILE] [OUTDIR]\n", argv[0]);
             return 0;
         } else {
             out_dir = arg;
         }
     }
 
-    {
-        PolyCubeListFileWriter<1> writer{out_dir/"polycubes_1.bin"};
+    if (seed_file.empty()) {
+        seed_file = out_dir/"polycubes_1.bin";
+        PolyCubeListFileWriter<1> writer{seed_file};
         writer.write({Coord{0, 0, 0}});
     }
 
-    for (size_t count{2}; count <= maxcount; ++count) {
-        auto infile = out_dir / std::format("polycubes_{}.bin", count-1);
+    size_t count{};
+
+    do {
+        PolyCubeListFileReader reader{seed_file};
+        count = reader.cube_count() + 1;
         auto outfile = out_dir / std::format("polycubes_{}.bin", count);
-        escalate(infile, outfile);
-    }
+        escalate(reader, outfile);
+        seed_file = outfile;
+    } while (count < maxcount);
 
     return 0;
 }
