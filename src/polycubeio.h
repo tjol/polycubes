@@ -9,7 +9,7 @@
 
 class PolyCubeListFileReader
 {
-    static size_t constexpr PAGE_SIZE = 1'000'000;
+    static size_t constexpr PAGE_SIZE = 10'000'000;
 
     template<size_t SIZE>
     struct Page
@@ -229,7 +229,7 @@ PolyCubeListFileReader::Iter<SIZE> operator+(std::iter_difference_t<PolyCubeList
 template <int SIZE>
 class PolyCubeListFileWriter
 {
-    static size_t constexpr WRITE_BUF_SIZE = 100'000;
+    static size_t constexpr WRITE_BUF_SIZE = 1000'000;
 public:
     explicit PolyCubeListFileWriter(std::filesystem::path const& path)
         : m_stream{std::make_unique<std::ofstream>(path, std::ios::binary | std::ios::trunc | std::ios::out)}

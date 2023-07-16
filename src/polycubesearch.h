@@ -225,24 +225,26 @@ private:
 
     void merge_results(std::vector<std::set<PolyCube<SIZE>>>& new_chunks)
     {
-        auto new_chunks_span = std::span{new_chunks};
-        PolyCubeListFileWriter<SIZE> cache_out{m_tmp_cache_file};
-
         auto old_count = m_count;
-        m_count = 0;
+        {
+            auto new_chunks_span = std::span{new_chunks};
+            PolyCubeListFileWriter<SIZE> cache_out{m_tmp_cache_file};
 
-        auto output_func = [&](auto const& pc) {
-            ++m_count;
-            cache_out.write(pc);
-        };
+            m_count = 0;
 
-        if (old_count == 0) {
-            // first chunk(s)
-            std::span<PolyCube<SIZE>> nullspan;
-            merge_uniq(nullspan, new_chunks_span, output_func);
-        } else {
-            PolyCubeListFileReader cache{m_cache_file};
-            merge_uniq(cache.range<SIZE>(), new_chunks_span, output_func);
+            auto output_func = [&](auto const& pc) {
+                ++m_count;
+                cache_out.write(pc);
+            };
+
+            if (old_count == 0) {
+                // first chunk(s)
+                std::span<PolyCube<SIZE>> nullspan;
+                merge_uniq(nullspan, new_chunks_span, output_func);
+            } else {
+                PolyCubeListFileReader cache{m_cache_file};
+                merge_uniq(cache.range<SIZE>(), new_chunks_span, output_func);
+            }
         }
 
         std::filesystem::remove(m_cache_file);
