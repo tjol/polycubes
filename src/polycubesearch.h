@@ -3,6 +3,7 @@
 
 #include "polycube.h"
 #include "polycubeio.h"
+#include "util.h"
 
 #include <algorithm>
 #include <chrono>
@@ -168,7 +169,7 @@ public:
             }
             m_result_condvar.notify_one();
 
-            if (!is_last_chunk) {
+            if (!is_last_chunk || i != 0) {
                 using Duration = std::chrono::system_clock::duration;
                 auto t = std::chrono::system_clock::now();
                 Duration dt = t - t0;
@@ -176,8 +177,10 @@ public:
                 auto progress = double(n_done) / double(seed_count);
                 auto expected_duration = Duration{(Duration::rep)(dt.count() * (1.0 / progress))};
                 auto eta = t0 + expected_duration;
-                std::cout << std::format("[{0:%F}T{0:%T%z}] generating ({2})-cubes: {3:.3}% ({4}/{5}); ETA {1:%R%z}\n",
-                    t, eta, SIZE, progress * 100.0, n_done, seed_count);
+
+                std::cout << std::format("[{0}] generating ({2})-cubes: {3:.3}% ({4}/{5}); ETA (optimistic) {1}\n",
+                    strftime_local("%FT%T", t), strftime_local("%R", eta),
+                    SIZE, progress * 100.0, n_done, seed_count);
             }
         }
         // Wait for the result to be written
@@ -244,7 +247,11 @@ private:
 
         std::filesystem::remove(m_cache_file);
         std::filesystem::rename(m_tmp_cache_file, m_cache_file);
-        std::cout << std::format("- wrote {} ({})-cubes to disk (was {})\n", m_count, SIZE, old_count);
+        if (!(old_count == 0 && m_done)) {
+            std::cout << std::format("[{}] wrote {} ({})-cubes to disk (was {})\n",
+                strftime_local("%FT%T", std::chrono::system_clock::now()),
+                m_count, SIZE, old_count);
+        }
 
         new_chunks.clear();
     }

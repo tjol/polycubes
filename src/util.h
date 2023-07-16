@@ -1,8 +1,11 @@
 #ifndef POLYCUBES_UTIL_H_
 #define POLYCUBES_UTIL_H_
 
+#include <chrono>
 #include <concepts>
+#include <ctime>
 #include <format>
+#include <string>
 
 template <std::integral T, T MAX, template<T i> class F>
 struct metaswitch
@@ -66,5 +69,17 @@ void merge_uniq(R1 old_range, std::span<R2> new_ranges, OutFunc f)
     }
 }
 
+
+inline std::string strftime_local(char const* fmt, std::chrono::time_point<std::chrono::system_clock> t)
+{
+    size_t constexpr buf_len = 1024;
+    time_t t_counter = std::chrono::system_clock::to_time_t(t);
+    struct tm t_struct;
+    localtime_r(&t_counter, &t_struct);
+    std::string result(buf_len, '\0');
+    auto len = strftime(result.data(), buf_len, fmt, &t_struct);
+    result.resize(len);
+    return result;
+}
 
 #endif // POLYCUBES_UTIL_H_
