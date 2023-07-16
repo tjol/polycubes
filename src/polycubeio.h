@@ -173,6 +173,16 @@ public:
     template <size_t SIZE> Iter<SIZE> end() { return Iter<SIZE>{this, m_polycube_count}; }
 
     template <size_t SIZE>
+    struct RangeAdapter
+    {
+        Iter<SIZE> begin() { return self->begin<SIZE>(); }
+        Iter<SIZE> end() { return self->end<SIZE>(); }
+        PolyCubeListFileReader* self;
+    };
+
+    template <size_t SIZE> RangeAdapter<SIZE> range() { return {this}; }
+
+    template <size_t SIZE>
     std::vector<PolyCube<SIZE>> slurp()
     {
         return std::vector<PolyCube<SIZE>>(begin<SIZE>(), end<SIZE>());
