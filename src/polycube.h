@@ -15,7 +15,12 @@ struct PolyCube
 
     std::array<Coord, SIZE> cubes;
 
-    PolyCube() {}
+    PolyCube() = default;
+    PolyCube(const PolyCube&) = default;
+    PolyCube(PolyCube&&) = default;
+
+    PolyCube& operator=(const PolyCube&) = default;
+    PolyCube& operator=(PolyCube&&) = default;
 
     template<IsCoord ... CoordType>
     PolyCube(CoordType ... block) : cubes{block...} {}

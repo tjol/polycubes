@@ -98,9 +98,19 @@ The rest of the file is just the coordinates: 1 byte per value, 3 bytes per
 
 ## Performance and space requirements
 
-On my desktop, all polycubes up to n = 12 are found within about two minutes.
-This uses about 1.5GB of RAM. Finding all up to n = 13 takes about 20 minutes
-on the same machine and uses some 11GB of memory.
+This table shows the approximate time and space requirements to calculate the
+full list of *N*-cubes:
 
-From n = 13, the program stores some interim results in files. This creates some
+| N | time | output file size | memory usage |
+|-|-|-|-|
+| 10 | 2 s | 10M | 44M |
+| 11 | 12 s | 80M | 225M |
+| 12 | 2 m | 639M | 1.5G |
+| 13 | 20 m | 5.1G | 4.6G |
+| 14 | tbc | 50G? | tbc |
+
+The times were measured on a desktop PC with an AMD Ryzen 5 5600 CPU running
+Linux, starting from the *(N-1)* result (not that that makes much of a difference).
+
+From N = 13, the program stores some interim results in files. This creates some
 overhead, but keeps memory usage in check.

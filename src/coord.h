@@ -22,7 +22,11 @@ struct Coord {
     std::array<Scalar, 3> xyz;
 
     Coord(Scalar x, Scalar y, Scalar z) : xyz{x, y, z} {}
-    Coord() {}
+    Coord() = default;
+    Coord(const Coord&) = default;
+    Coord(Coord&&) = default;
+    Coord& operator=(const Coord&) = default;
+    Coord& operator=(Coord&&) = default;
 
     Coord rot(int orientation) const
     {

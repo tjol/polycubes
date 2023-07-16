@@ -19,7 +19,7 @@
 
 
 long constexpr serial_chunk_size(size_t SIZE) { return 3200 / SIZE; }
-inline long parallel_chunk_count() { return std::thread::hardware_concurrency() * 2; }
+inline long parallel_chunk_count() { return std::thread::hardware_concurrency(); }
 // 2522522 is the number of 11-cubes -> start using a cache at 13-from-12
 long constexpr input_size_without_cache([[maybe_unused]] size_t SIZE) { return 2522522; }
 
@@ -199,8 +199,7 @@ private:
             {
                 std::unique_lock result_lock{m_result_mutex};
                 if (!m_result_chunks.empty()) {
-                    std::move(m_result_chunks.begin(), m_result_chunks.end(), std::back_inserter(new_chunks));
-                    m_result_chunks.clear();
+                    new_chunks = std::move(m_result_chunks);
                 }
                 done = m_done;
 
@@ -210,9 +209,10 @@ private:
             }
 
             if (new_chunks.size() > 1) {
-                std::cerr << "warning: " << new_chunks.size()
+                std::cout << "WARNING: " << new_chunks.size()
                     << " results in queue; IO is slower than compute!\n";
             }
+
 
             if (!new_chunks.empty()) merge_results(new_chunks);
         }
