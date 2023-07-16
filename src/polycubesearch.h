@@ -233,7 +233,7 @@ private:
             cache_out.write(pc);
         };
 
-        if (m_count == 0) {
+        if (old_count == 0) {
             // first chunk(s)
             std::span<PolyCube<SIZE>> nullspan;
             merge_uniq(nullspan, new_chunks_span, output_func);
