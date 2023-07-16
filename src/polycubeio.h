@@ -9,6 +9,16 @@
 
 class PolyCubeListFileReader
 {
+    static size_t constexpr PAGE_SIZE = 100'000'000;
+
+    template<size_t SIZE>
+    struct Page
+    {
+        size_t index{};
+        std::vector<PolyCube<SIZE>> shapes;
+        PolyCube<SIZE> const& operator[](size_t i) const { return shapes[i]; }
+    };
+
 public:
     explicit PolyCubeListFileReader(std::filesystem::path const& path)
         : m_stream{std::make_unique<std::ifstream>(path, std::ios::binary | std::ios::in)}
@@ -26,6 +36,13 @@ public:
         m_cube_count = cube_count;
 
         m_begin_pos = m_stream->tellg();
+        m_stream->seekg(0, std::ios::end);
+        m_end_pos = m_stream->tellg();
+
+        m_polycube_count = (m_end_pos - m_begin_pos) / (m_cube_count * sizeof(Coord));
+        
+        auto page_count = (m_polycube_count - 1) / PAGE_SIZE + 1;
+        m_pages.resize(page_count);
     }
 
     int cube_count() const { return m_cube_count; }
@@ -43,8 +60,8 @@ public:
 
         Iter() = default;
 
-        Iter(std::istream* stream, std::istream::pos_type pos)
-            : m_stream{stream}, m_pos{pos}
+        Iter(PolyCubeListFileReader* parent, size_t pos)
+            : m_parent{parent}, m_pos{pos}
         {
             update();
         }
@@ -54,14 +71,14 @@ public:
         Iter& operator=(const Iter&) = default;
         Iter& operator=(Iter&&) = default;
 
-        reference operator*() const { return m_val; }
-        pointer operator->() const { return &m_val; }
+        reference operator*() const { return (*m_page)[m_pos_in_page]; }
+        pointer operator->() const { return &(*m_page)[m_pos_in_page]; }
 
         reference operator[](difference_type n) const { return *((*this) + n);}
 
         Iter& operator++()
         {
-            m_pos = m_next_pos;
+            ++m_pos;
             update();
             return *this;
         }
@@ -75,7 +92,7 @@ public:
 
         Iter& operator--()
         {
-            m_pos -= sizeof(value_type);
+            --m_pos;
             update();
             return *this;
         }
@@ -89,19 +106,19 @@ public:
 
         difference_type operator-(Iter const& other) const
         {
-            return (m_pos - other.m_pos) / sizeof(value_type);
+            return m_pos - other.m_pos;
         }
 
         Iter& operator+=(difference_type n)
         {
-            m_pos += n * sizeof(value_type);
+            m_pos += n;
             update();
             return *this;
         }
 
         Iter& operator-=(difference_type n)
         {
-            m_pos -= n * sizeof(value_type);
+            m_pos -= n;
             update();
             return *this;
         }
@@ -122,7 +139,7 @@ public:
 
         bool operator==(Iter const& other) const
         {
-            return m_stream == other.m_stream && m_pos == other.m_pos;
+            return m_parent == other.m_parent && m_pos == other.m_pos;
         }
 
         bool operator!=(Iter const& other) const { return !(*this == other); }
@@ -138,28 +155,22 @@ public:
     private:
         void update()
         {
-            m_stream->clear();
-            m_stream->seekg(m_pos);
-            m_stream->read(reinterpret_cast<char*>(&m_val), sizeof(PolyCube<SIZE>));
-            if (m_stream->good())
-                m_next_pos = m_stream->tellg();
+            auto page_idx = m_pos / PAGE_SIZE;
+            if (m_page == nullptr || m_page->index != page_idx) {
+                m_page = m_parent->page<SIZE>(page_idx);
+            }
+            m_pos_in_page = m_pos - page_idx * PAGE_SIZE;
         }
 
-        std::istream* m_stream{nullptr};
-        std::istream::pos_type m_pos{};
-        std::istream::pos_type m_next_pos{};
-        PolyCube<SIZE> m_val;
+        PolyCubeListFileReader* m_parent;
+        size_t m_pos{};
+        std::shared_ptr<const Page<SIZE>> m_page;
+        size_t m_pos_in_page{};
     };
 
-    template <size_t SIZE> Iter<SIZE> begin() { return Iter<SIZE>{m_stream.get(), m_begin_pos}; }
+    template <size_t SIZE> Iter<SIZE> begin() { return Iter<SIZE>{this, 0}; }
 
-    template <size_t SIZE>
-    Iter<SIZE> end()
-    {
-        m_stream->seekg(0, std::ios::end);
-        auto endpos = m_stream->tellg();
-        return Iter<SIZE>{m_stream.get(), endpos};
-    }
+    template <size_t SIZE> Iter<SIZE> end() { return Iter<SIZE>{this, m_polycube_count}; }
 
     template <size_t SIZE>
     std::vector<PolyCube<SIZE>> slurp()
@@ -168,9 +179,35 @@ public:
     }
 
 private:
+    template<size_t SIZE>
+    std::shared_ptr<const Page<SIZE>> page(int page_idx)
+    {
+        auto void_result = m_pages[page_idx].lock();
+        if (void_result == nullptr) {
+            // load the page
+            auto constexpr page_bytes = PAGE_SIZE * sizeof(PolyCube<SIZE>);
+            auto const page_start = m_begin_pos + page_idx * (long)page_bytes;
+            auto const actual_page_len = std::min(m_end_pos - page_start, (long)page_bytes);
+            auto const actual_shape_count = actual_page_len / sizeof(PolyCube<SIZE>);
+            m_stream->seekg(page_start);
+            auto result = std::make_shared<Page<SIZE>>();
+            result->index = page_idx;
+            result->shapes.resize(actual_shape_count);
+            m_stream->read(reinterpret_cast<char*>(result->shapes.data()), actual_page_len);
+            m_pages[page_idx] = result;
+            return result;
+        } else {
+            return std::reinterpret_pointer_cast<const Page<SIZE>>(void_result);
+        }
+    }
+
     std::unique_ptr<std::istream> m_stream{};
-    std::istream::pos_type m_begin_pos{};
     int m_cube_count{};
+    std::istream::pos_type m_begin_pos{};
+    std::istream::pos_type m_end_pos{};
+    size_t m_polycube_count{};
+
+    std::vector<std::weak_ptr<void>> m_pages;
 };
 
 template<size_t SIZE>
