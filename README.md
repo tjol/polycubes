@@ -106,12 +106,13 @@ full list of *N*-cubes:
 | 10 | 2 s | 10 MB | 44 MB |
 | 11 | 12 s | 80 MB | 225 MB |
 | 12 | 2 min | 639 MB | 1.5 GB |
-| 13 | 20 min | 5.1 GB | 4.6 GB |
-| 14 | tbc | 50 GB? | tbc |
+| 13 | 20 min | 5.1 GB | ~ 5 GB |
+| 14 | 3.5 h | 41 GB | ~ 27 GB |
 
-The times were measured on a desktop PC with an AMD Ryzen 5 5600 CPU running
-Linux, starting from the *(N-1)* result (not that that makes much of a difference).
+The times were measured on a desktop PC with an AMD Ryzen 5 5600 CPU and 32 GB
+of RAM running Linux, starting from the *(N-1)* result (not that that makes much
+of a difference).
 
 From N = 13, the program stores some interim results in files. This creates some
-overhead, but keeps memory usage in check. The amount of disk space required is
-twice the size of the final file.
+overhead, but means not the entire result has to be stored in memory at once.
+The amount of *disk* space required is twice the size of the final file.
