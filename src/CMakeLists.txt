@@ -1,3 +1,6 @@
+# -------------------------------------------------------------------------
+# FIND std::execution
+
 find_package(Threads REQUIRED)
 find_package(TBB QUIET)
 
@@ -50,8 +53,27 @@ if(NOT HAVE_STD_EXECUTION)
     message(FATAL_ERROR "C++17 execution policies not working")
 endif()
 
+# -------------------------------------------------------------------------
+# FIND GDBM
+
+find_library(GDBM_LIBRARY NAMES gdbm)
+if (GDBM_LIBRARY STREQUAL GDBM_LIBRARY-NOTFOUND)
+    message(FATAL_ERROR "libgdbm not found!")
+endif()
+
+include(CheckCXXSymbolExists)
+set(CMAKE_REQUIRED_LIBRARIES ${GDBM_LIBRARY})
+check_cxx_symbol_exists(gdbm_open "gdbm.h" HAVE_GDBM_H)
+
+if(NOT HAVE_GDBM_H)
+    message(FATAL_ERROR "no gdbm.h")
+endif()
+
+# -------------------------------------------------------------------------
+# DEFINE TARGETS
+
 add_executable(polycubegen polycubegen.cpp)
-target_link_libraries(polycubegen ${STD_EXECUTION_LIBRARIES})
+target_link_libraries(polycubegen ${STD_EXECUTION_LIBRARIES} ${GDBM_LIBRARY})
 
 add_executable(polycubes2obj polycubes2obj.cpp)
 

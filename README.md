@@ -103,7 +103,7 @@ full list of *N*-cubes:
 
 | N | time | output file size | memory usage |
 |-|-|-|-|
-| 10 | 2 s | 10 MB | 44 MB |
+| 10 | 2 s | 10 MB | 10 MB |
 | 11 | 12 s | 80 MB | 225 MB |
 | 12 | 2 min | 639 MB | 1.5 GB |
 | 13 | 20 min | 5.1 GB | 4.6 GB |

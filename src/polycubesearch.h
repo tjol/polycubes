@@ -5,6 +5,8 @@
 #include "polycubeio.h"
 #include "util.h"
 
+#include <gdbm.h>
+
 #include <algorithm>
 #include <chrono>
 #include <condition_variable>
@@ -17,6 +19,9 @@
 #include <set>
 #include <thread>
 
+template<size_t SIZE>
+using PolyCubeSet = std::set<PolyCube<SIZE>>;
+
 
 long constexpr serial_chunk_size(size_t SIZE) { return 3200 / SIZE; }
 inline long parallel_chunk_count() { return std::thread::hardware_concurrency(); }
@@ -25,7 +30,7 @@ long constexpr input_size_without_cache([[maybe_unused]] size_t SIZE) { return 2
 
 
 template <size_t SIZE>
-void try_adding_block(PolyCube<SIZE-1> const& orig_shape, Coord const& coord, std::set<PolyCube<SIZE>>& output)
+void try_adding_block(PolyCube<SIZE-1> const& orig_shape, Coord const& coord, PolyCubeSet<SIZE>& output)
 {
     for (auto const& block : orig_shape.cubes) {
         if (block == coord) return;
@@ -41,7 +46,7 @@ void try_adding_block(PolyCube<SIZE-1> const& orig_shape, Coord const& coord, st
 
 
 template <size_t SIZE>
-void find_larger(PolyCube<SIZE-1> const& orig_shape, std::set<PolyCube<SIZE>>& output)
+void find_larger(PolyCube<SIZE-1> const& orig_shape, PolyCubeSet<SIZE>& output)
 {
     for (auto const& block : orig_shape.cubes) {
         try_adding_block(orig_shape, block + Coord{1, 0, 0}, output);
@@ -96,7 +101,7 @@ void find_all_impl(Iter begin, Iter end, std::set<PolyCube<cube_count_of_iter<It
             chunks.push_back(std::vector<PolyCube<SIZE - 1>>(chunk_begin, chunk_end));
         }
 
-        std::vector<std::set<PolyCube<SIZE>>> sub_results(chunks.size());
+        std::vector<PolyCubeSet<SIZE>> sub_results(chunks.size());
 
         std::vector<long> indices(chunks.size());
         std::iota(indices.begin(), indices.end(), 0);
@@ -119,10 +124,10 @@ void find_all_impl(Iter begin, Iter end, std::set<PolyCube<cube_count_of_iter<It
 }
 
 template <RandomAccessPolyCubeIterator Iter>
-std::set<PolyCube<cube_count_of_iter<Iter> + 1>> find_all_one_larger(Iter begin, Iter end)
+PolyCubeSet<cube_count_of_iter<Iter> + 1> find_all_one_larger(Iter begin, Iter end)
 {
     size_t constexpr SIZE = cube_count_of_iter<Iter> + 1;
-    std::set<PolyCube<SIZE>> result;
+    PolyCubeSet<SIZE> result;
     find_all_impl(begin, end, result);
     return result;
 }
@@ -133,9 +138,14 @@ class PolyCubeListGenerator
 public:
     PolyCubeListGenerator(std::filesystem::path outfile)
     : m_out_file{std::move(outfile)},
-      m_cache_file{m_out_file.parent_path() / std::format(".{}.tmp.1", m_out_file.filename().string())},
-      m_tmp_cache_file{m_out_file.parent_path() / std::format(".{}.tmp.2", m_out_file.filename().string())}
+      m_cache_file{m_out_file.parent_path() / std::format(".{}.db", m_out_file.filename().string())},
+      m_cache{gdbm_open(m_cache_file.c_str(), 0, GDBM_NEWDB, 0600, nullptr)}
     {
+    }
+
+    ~PolyCubeListGenerator()
+    {
+        close_cache();
     }
 
     template<typename Iter>
@@ -192,7 +202,7 @@ public:
 private:
     void merge_worker()
     {
-        std::vector<std::set<PolyCube<SIZE>>> new_chunks;
+        std::vector<PolyCubeSet<SIZE>> new_chunks;
         bool done = false;
 
         while (!done) {
@@ -218,57 +228,103 @@ private:
         }
 
         // commit the result
-        if (std::filesystem::exists(m_cache_file)) {
-            std::filesystem::rename(m_cache_file, m_out_file);
-        }
+        commit();
     }
 
-    void merge_results(std::vector<std::set<PolyCube<SIZE>>>& new_chunks)
+    void merge_results(std::vector<PolyCubeSet<SIZE>>& new_chunks)
     {
         auto old_count = m_count;
-        {
-            auto new_chunks_span = std::span{new_chunks};
-            PolyCubeListFileWriter<SIZE> cache_out{m_tmp_cache_file};
 
-            m_count = 0;
+        if (old_count == 0 && m_done && new_chunks.size() == 1) {
+            // no need for a cache, nothing to merge
+            close_cache();
 
-            auto output_func = [&](auto const& pc) {
+            PolyCubeListFileWriter<SIZE> writer(m_out_file);
+
+            for (auto const& pc : new_chunks[0]) {
                 ++m_count;
-                cache_out.write(pc);
-            };
+                writer.write(pc);
+            }
 
-            if (old_count == 0) {
-                // first chunk(s)
-                std::span<PolyCube<SIZE>> nullspan;
-                merge_uniq(nullspan, new_chunks_span, output_func);
-            } else {
-                PolyCubeListFileReader cache{m_cache_file};
-                merge_uniq(cache.range<SIZE>(), new_chunks_span, output_func);
+            new_chunks.clear();
+
+            return;
+        }
+
+        static char nothing[1] = "";
+        datum empty = {nothing, 0};
+
+        for (auto const& chunk : new_chunks) {
+            for (auto const& pc : chunk) {
+                datum cache_key = {
+                    const_cast<char*>(reinterpret_cast<const char*>(&pc)),
+                    static_cast<int>(sizeof(PolyCube<SIZE>))
+                };
+
+                int status = gdbm_store(m_cache, cache_key, empty, GDBM_INSERT);
+                if (status == 0) {
+                    // new key
+                    ++m_count;
+                } else if (status == 1 && gdbm_errno == GDBM_CANNOT_REPLACE) {
+                    // all good
+                } else {
+                    std::cout << "status = " << status << ", gdbm_errno = " << gdbm_errno << "\n";
+                    throw std::runtime_error("error in gdbm_store");
+                }
             }
         }
 
-        std::filesystem::remove(m_cache_file);
-        std::filesystem::rename(m_tmp_cache_file, m_cache_file);
-        if (!(old_count == 0 && m_done)) {
-            std::cout << std::format("[{}] wrote {} ({})-cubes to disk (was {})\n",
-                strftime_local("%FT%T", std::chrono::system_clock::now()),
-                m_count, SIZE, old_count);
-        }
+        std::cout << std::format("[{}] saved {} ({})-cubes in cache (was {})\n",
+            strftime_local("%FT%T", std::chrono::system_clock::now()),
+            m_count, SIZE, old_count);
 
         new_chunks.clear();
     }
 
+    void commit()
+    {
+        if (m_cache == nullptr) return;
+
+        PolyCubeListFileWriter<SIZE> writer(m_out_file);
+
+        datum key = gdbm_firstkey(m_cache);
+        while (key.dptr != nullptr) {
+            auto* pc = reinterpret_cast<PolyCube<SIZE>*>(key.dptr);
+            writer.write(*pc);
+
+            datum nextkey = gdbm_nextkey(m_cache, key);
+            free(key.dptr);
+            key = nextkey;
+        }
+
+        if (gdbm_errno != GDBM_ITEM_NOT_FOUND) {
+            throw std::runtime_error("gdbm error");
+        }
+
+        close_cache();
+    }
+
+    void close_cache()
+    {
+        if (m_cache != nullptr) {
+            gdbm_close(m_cache);
+            m_cache = nullptr;
+            std::filesystem::remove(m_cache_file);
+        }
+    }
+
     std::filesystem::path m_out_file;
     std::filesystem::path m_cache_file;
-    std::filesystem::path m_tmp_cache_file;
 
     std::jthread m_merge_worker_thread;
     std::mutex m_result_mutex;
     std::condition_variable m_result_condvar;
     long m_count{};
 
-    std::vector<std::set<PolyCube<SIZE>>> m_result_chunks;
+    std::vector<PolyCubeSet<SIZE>> m_result_chunks;
     bool m_done{};
+
+    GDBM_FILE m_cache{};
 };
 
 template <RandomAccessPolyCubeIterator Iter>
