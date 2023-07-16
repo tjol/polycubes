@@ -1,5 +1,5 @@
 find_package(Threads REQUIRED)
-find_package(TBB)
+find_package(TBB QUIET)
 
 if(NOT DEFINED STD_EXECUTION_LIBRARIES)
     set(STD_EXECUTION_LIBRARIES Threads::Threads CACHE INTERNAL "Libraries for std::execution")

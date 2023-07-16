@@ -77,7 +77,7 @@ void find_all_impl(Iter begin, Iter end, std::set<PolyCube<cube_count_of_iter<It
     static auto PARALLEL_CHUNKS = parallel_chunk_count();
     static auto PARALLEL_COUNT = PARALLEL_CHUNKS * SERIAL_CHUNK_SIZE;
 
-    auto count = end - begin;
+    long count = end - begin;
 
     if (count <= SERIAL_CHUNK_SIZE) {
         // Do these all at once, one after the other
@@ -138,7 +138,7 @@ public:
     }
 
     template<typename Iter>
-    size_t operator()(Iter seed_begin, Iter seed_end)
+    long operator()(Iter seed_begin, Iter seed_end)
     {
         // Start the worker thread
         m_count = 0;
@@ -147,7 +147,7 @@ public:
         // Start the clock (for logging)
         auto t0 = std::chrono::system_clock::now();
 
-        auto seed_count = seed_end - seed_begin;
+        long seed_count = seed_end - seed_begin;
         auto chunk_size = input_size_without_cache(SIZE);
 
         for (long i{}; i < seed_count; i += chunk_size) {
@@ -256,14 +256,14 @@ private:
     std::jthread m_merge_worker_thread;
     std::mutex m_result_mutex;
     std::condition_variable m_result_condvar;
-    size_t m_count{};
+    long m_count{};
 
     std::vector<std::set<PolyCube<SIZE>>> m_result_chunks;
     bool m_done{};
 };
 
 template <RandomAccessPolyCubeIterator Iter>
-size_t gen_polycube_list(Iter seed_begin, Iter seed_end, std::filesystem::path outfile)
+long gen_polycube_list(Iter seed_begin, Iter seed_end, std::filesystem::path outfile)
 {
     size_t constexpr SIZE = cube_count_of_iter<Iter> + 1;
 

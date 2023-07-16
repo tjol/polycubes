@@ -51,7 +51,16 @@ This C++ project is built with the uniquitous CMake. Run:
     cmake .. -DCMAKE_BUILD_TYPE=Release
     cmake --build . --config=Release
 
-(Tested on Linux)
+Tested on Linux with GCC 13, Windows with Visual C++ 2022, and MacOS with GCC 13.
+
+Compatibility notes:
+ * On Linux, you need to have TBB installed (`apt install libtbb-dev` on Ubuntu)
+ * On MacOS, you need to have TBB installed (`brew install tbb`) and you *must*
+   use GCC (`brew install gcc`), Clang will not work! Configure like this:
+
+       CXX=g++-13 cmake .. -DCMAKE_BUILD_TYPE=Release
+
+    and continue as on the other platforms.
 
 The project builds two executables: `polycubegen` and `polycubes2obj`.
 
@@ -69,6 +78,8 @@ The project builds two executables: `polycubegen` and `polycubes2obj`.
 
   Note: OBJ is a text file format, so the resulting file is significantly larger
   than the binary list! It works ok up to at least around n = 9.
+
+Note: on *Windows*, the executables might be placed at `.\src\Release\*.exe`.
 
 ![All possible hexacubes](hexacubes.webp)
 
