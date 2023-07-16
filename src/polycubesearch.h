@@ -23,6 +23,8 @@ inline long parallel_chunk_count() { return std::thread::hardware_concurrency();
 // 2522522 is the number of 11-cubes -> start using a cache at 13-from-12
 long constexpr input_size_without_cache([[maybe_unused]] size_t SIZE) { return 2522522; }
 
+int constexpr MAXIMUM_TOLERATED_CACHE_WAITLIST = 2;
+
 
 template <size_t SIZE>
 void try_adding_block(PolyCube<SIZE-1> const& orig_shape, Coord const& coord, std::set<PolyCube<SIZE>>& output)
@@ -164,10 +166,17 @@ public:
             // Hand the result over
             {
                 std::unique_lock lock{m_result_mutex};
+
+                while (m_result_chunks.size() >= MAXIMUM_TOLERATED_CACHE_WAITLIST) {
+                    // can't add to this list - it's too long already. Wait.
+                    std::cout << "EMERGENCY SYNCHRONIZATION STOP\n";
+                    m_result_condvar.wait(lock);
+                }
+
                 m_done = is_last_chunk;
                 m_result_chunks.emplace_back(std::move(chunk_result));
             }
-            m_result_condvar.notify_one();
+            m_result_condvar.notify_all();
 
             if (!is_last_chunk || i != 0) {
                 using Duration = std::chrono::system_clock::duration;
@@ -207,6 +216,9 @@ private:
                     m_result_condvar.wait(result_lock);
                 }
             }
+            // Notify in case the other thread is waiting for the results to be
+            // picked up
+            m_result_condvar.notify_all();
 
             if (new_chunks.size() > 1) {
                 std::cout << "WARNING: " << new_chunks.size()
