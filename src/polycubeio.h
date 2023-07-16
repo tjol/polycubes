@@ -9,7 +9,7 @@
 
 class PolyCubeListFileReader
 {
-    static size_t constexpr PAGE_SIZE = 100'000'000;
+    static size_t constexpr PAGE_SIZE = 1000'000'000;
 
     template<size_t SIZE>
     struct Page
@@ -40,7 +40,7 @@ public:
         m_end_pos = m_stream->tellg();
 
         m_polycube_count = (m_end_pos - m_begin_pos) / (m_cube_count * sizeof(Coord));
-        
+
         auto page_count = (m_polycube_count - 1) / PAGE_SIZE + 1;
         m_pages.resize(page_count);
     }
@@ -219,10 +219,12 @@ PolyCubeListFileReader::Iter<SIZE> operator+(std::iter_difference_t<PolyCubeList
 template <int SIZE>
 class PolyCubeListFileWriter
 {
+    static size_t constexpr WRITE_BUF_SIZE = 10'000'000;
 public:
     explicit PolyCubeListFileWriter(std::filesystem::path const& path)
         : m_stream{std::make_unique<std::ofstream>(path, std::ios::binary | std::ios::trunc | std::ios::out)}
     {
+        static_assert(std::endian::native == std::endian::little);
         const int32_t size = SIZE;
         m_stream->write("PLYCUBE1", 8);
         m_stream->write(reinterpret_cast<char const*>(&size), sizeof(int32_t));
@@ -230,11 +232,24 @@ public:
 
     void write(PolyCube<SIZE> const& s)
     {
-        static_assert(std::endian::native == std::endian::little);
-        m_stream->write(reinterpret_cast<char const*>(&s), sizeof(PolyCube<SIZE>));
+        m_wbuf.push_back(s);
+        if (m_wbuf.size() >= WRITE_BUF_SIZE) flush();
+    }
+
+    ~PolyCubeListFileWriter()
+    {
+        flush();
     }
 private:
+    void flush()
+    {
+        m_stream->write(reinterpret_cast<char const*>(m_wbuf.data()),
+                        m_wbuf.size() * sizeof(PolyCube<SIZE>));
+        m_wbuf.clear();
+    }
+
     std::unique_ptr<std::ostream> m_stream{};
+    std::vector<PolyCube<SIZE>> m_wbuf;
 };
 
 #endif // POLYCUBES_POLYCUBEIO_H_
